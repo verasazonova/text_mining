@@ -111,11 +111,37 @@ def make_positive_labeled_kenyan_data(dataname):
     print cnt_pos
 
 
+# a class that takes a normalized corpus saved in a text file - a text per line
+# and yields it as a list of tokens.
+class TextFile(object):
+    def __init__(self, filenames):
+        self.filenames = filenames
+
+    def __iter__(self):
+        for filename in self.filenames:
+            for line in codecs.open(filename, 'r', encoding='utf-8'):
+                yield tu.normalize_punctuation(line).split()
+
+
+# load an corpora of texts into a numpy array
+def load_data(filename):
+    with codecs.open(filename, 'w', encoding='utf-8') as fout:
+        text_list = [line for line in fout]
+    return np.array(text_list)
+
+# save a corpora of text in a text file one text per line
+def save_data(data, filename):
+    with codecs.open(filename, 'w', encoding='utf-8') as fout:
+        for line in data:
+            fout.write("%s\n" % line)
+
+
 def save_positives(positives, dataname):
     with codecs.open(dataname+"_additional_positives.csv", 'w', encoding='utf-8') as fout:
         fout.write("id_str,text\n")
         for tweet, id in positives:
             fout.write(id + ",\"" + tweet.replace("\"", "\"\"") + "\"\n")
+
 
 def save_words_representations(filename, word_list, vec_list):
     # saving word representations
@@ -134,3 +160,16 @@ def save_cluster_info(filename, cluster_info):
                 if j < 10:
                     fout.write("%s " % word)
             fout.write("\n")
+
+
+def get_w2v_naming():
+
+    names = {"x_labeled": "x_labeled.txt",
+             "y_labeled": "y_labeled.txt",
+             "x_unlabeled": "x_unlabeled.txt",
+             "x_test": "x_text",
+             "y_test": "y_test",
+             "w2v_model_name": "w2v_model",
+             "w2v_data_name": "w2v_data",
+             "w2v_features_crd_name": "w2v_f_crd",
+             }

@@ -1,37 +1,25 @@
 import logging
 import pickle
 import numpy as np
+from gensim.models import Word2Vec
 from sklearn.preprocessing import StandardScaler
-from text_mining.experiments.build_model import build_w2v_model
+from text_mining.utils import ioutils as io
 from text_mining.models import transformers
 from text_mining.utils import textutils as tu
+import argparse
 
 __author__ = 'verasazonova'
 
 
-def build_and_vectorize_w2v(x_data=None, y_data=None, unlabeled_data=None, window=0, size=0, dataname="",
-                        rebuild=False, action="classify", stoplist=None, min_count=1,
-                        diff1_max=3, diff0_max=1):
-
-    w2v_corpus = [x_data, unlabeled_data]
-    if action == "explore":
-        explore = True
-    else:
-        explore = False
-
-    logging.info("Classifying %s, %i, %i" % (dataname, len(w2v_corpus), min_count,))
-    # build models
-    w2v_model = build_w2v_model(w2v_corpus, dataname=dataname, window=window, size=size, min_count=min_count,
-                                rebuild=rebuild, explore=explore)
+def build_and_vectorize_w2v(x_data=None, y_data=None, dataname="",
+                            w2v_model=None, diff1_max=3, diff0_max=1):
 
     # get features from models
-    w2v = transformers.W2VTextModel(w2v_model=w2v_model, no_above=1.0, no_below=1, diffmax0=diff0_max, diffmax1=diff1_max)
-
+    w2v = transformers.W2VTextModel(w2v_model=w2v_model, no_above=1.0, no_below=1,
+                                    diffmax0=diff0_max, diffmax1=diff1_max)
     # get matrices of features from x_data
     w2v_data = w2v.fit_transform(x_data)
-
     print w2v_data.shape
-
     return w2v_data, w2v.feature_crd
 
 
@@ -66,14 +54,56 @@ def scale_features(data, feature_crd):
     return data
 
 
-def build_experiments(feature_crd, names_orig=None, experiment_nums=None):
-    if names_orig is None:
-        names_orig = sorted(feature_crd.keys())
-    experiments = []
-    print "Building experiments: ", experiment_nums
-    names = []
-    for name in names_orig:
-        if (experiment_nums is None) or (int(name[:2]) in experiment_nums):
-            names.append(name)
-            experiments.append( [(0, feature_crd[name][1])])
-    return names, experiments
+
+
+
+def __main__():
+
+    parser = argparse.ArgumentParser(description='')
+    parser.add_argument('-f', action='store', dest='filename', nargs='+', help='Filename')
+    parser.add_argument('--w2v_name', action='store', dest='w2v_model_name', default="", help='W2v model filename')
+    parser.add_argument('--diff1_max', action='store', dest='diff1_max', default='5', help='Diff 1 max')
+    parser.add_argument('--diff0_max', action='store', dest='diff0_max', default='1', help='Diff 0 max')
+
+    arguments = parser.parse_args()
+    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO,
+                        filename=arguments.dataname+"_log.txt")
+
+    # parameters for w2v model
+    diff1_max=int(arguments.diif1_max)
+    diff0_max=int(arguments.diif0_max)
+
+    # load w2v model
+    w2v_model = Word2Vec.load(arguments.w2v_model_name)
+
+    # load x_data
+    x_data = io.load_data( arguments.filename)
+
+    w2v_data, w2v_feature_crd = build_and_vectorize_w2v(x_data=x_data, w2v_model=w2v_model,
+                                                          diff1_max=diff1_max, diff0_max=diff0_max)
+
+    # scale
+    naming_dict = io.get_w2v_naming()
+
+    print "Vectorized.  Saving"
+    logging.info("Vectorized. Saving")
+    np.save(naming_dict["w2v_data_name"], np.ascontiguousarray(w2v_data))
+
+    pickle.dump(w2v_feature_crd, open(naming_dict["w2v_feature_crd_name"], 'wb'))
+
+    logging.info("Scaling")
+    print "Scaling"
+    w2v_data = scale_features(w2v_data, w2v_feature_crd)
+    print "Scaled. Saving"
+    logging.info("Scaled. Saving")
+
+    np.save(naming_dict["w2v_data_name"], np.ascontiguousarray(w2v_data))
+
+    print "Building experiments"
+    logging.info("Building experiments")
+
+
+
+if __name__ == "__main__":
+    __main__()
+

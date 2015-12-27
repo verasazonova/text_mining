@@ -62,7 +62,7 @@ def extract_phrases(tweet_text_corpus, stoplist):
 
 def tweet_bow_classification(filename, dataname, n_trial=None,  p=None, thresh=None,
                              clf_name='bow', clf_base="lr", action="classify"):
-    x_data, y_data, unlabeled_data, run_dataname, stoplist, ids = read_and_split_data(filename=filename, p=p, thresh=thresh,
+    x_data, y_data, unlabeled_data, run_dataname, stoplist, ids = read_and_split_data(filename=filename, p_labeled=p, p_used=thresh,
                                                                                   n_trial=n_trial, dataname=dataname)
 
     bow = transformers.BOWModel(no_above=0.8, no_below=8, stoplist=stoplist)
@@ -112,7 +112,7 @@ def tweet_classification(filename, size, window, dataname, p=None, thresh=None, 
 
     if not os.path.isfile(w2v_data_scaled_name+".npy"):
 
-        x_data, y_data, unlabeled_data, run_dataname, stoplist, ids = read_and_split_data(filename=filename, p=p, thresh=thresh,
+        x_data, y_data, unlabeled_data, run_dataname, stoplist, ids = read_and_split_data(filename=filename, p_labeled=p, p_used=thresh,
                                                                                   n_trial=n_trial, dataname=dataname,
                                                                                   unlabeled_filenames=unlabeled_filenames)
 

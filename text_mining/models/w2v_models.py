@@ -51,8 +51,6 @@ def build_word2vec(text_corpus, size=100, window=10, min_count=2, dataname="none
                              sample=1e-3, seed=1, workers=4, hs=1, min_alpha=0.0001, sg=1, cbow_mean=0)
 
     logging.info("%s" % w2v_model)
-    w2v_model_name = make_w2v_model_name(dataname, size, window, min_count)
-    w2v_model.save(w2v_model_name)
 
     return w2v_model
 

@@ -1,11 +1,16 @@
+__author__ = 'verasazonova'
+
 import logging
+import argparse
 import numpy as np
 from scipy.sparse import csr_matrix
 from sklearn import cross_validation, grid_search
 from sklearn.utils import shuffle
-from text_mining.utils import ioutils
-
-__author__ = 'verasazonova'
+from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression
+import sklearn
+import pickle
+from text_mining.utils import ioutils as io
 
 
 def explore_classifier(x, y, clf=None, n_trials=1, orig_data=None):
@@ -41,9 +46,9 @@ def explore_classifier(x, y, clf=None, n_trials=1, orig_data=None):
     false_positives = list(set(false_positives))
     false_negatives = list(set(false_negatives))
     print "False positives:", len(false_positives)
-    ioutils.save_positives(false_positives, dataname="false")
-    ioutils.save_positives(false_negatives, dataname="false_negatives")
-    ioutils.save_positives(positives, dataname="positives")
+    io.save_positives(false_positives, dataname="false")
+    io.save_positives(false_negatives, dataname="false_negatives")
+    io.save_positives(positives, dataname="positives")
     print
     print "False negatives:", len(false_negatives)
 
@@ -132,3 +137,89 @@ def run_grid_search(x, y, clf=None, parameters=None, fit_parameters=None):
     print grid_clf.best_score_
 
     return grid_clf.best_score_
+
+
+def build_experiments(feature_crd, names_orig=None, experiment_nums=None):
+    if names_orig is None:
+        names_orig = sorted(feature_crd.keys())
+    experiments = []
+    print "Building experiments: ", experiment_nums
+    names = []
+    for name in names_orig:
+        if (experiment_nums is None) or (int(name[:2]) in experiment_nums):
+            names.append(name)
+            experiments.append( [(0, feature_crd[name][1])])
+    return names, experiments
+
+
+def __main__():
+
+    parser = argparse.ArgumentParser(description='')
+    parser.add_argument('-f', action='store', dest='filename', nargs='+', help='Filename')
+    parser.add_argument('--dname', action='store', dest='dataname', default="log", help='Output filename')
+    parser.add_argument('--clfbase', action='store', dest='clfbase', default='lr', help='Base Classifier name')
+    parser.add_argument('--action', action='store', dest='action', default='plot', help='Classify or explore')
+    parser.add_argument('--exp_num', action='store', dest='exp_nums', nargs='+', help='Experiments to save')
+    parser.add_argument('--parameters', action='store', dest='params', nargs='+', help='Parameters to save')
+
+
+    arguments = parser.parse_args()
+    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO,
+                        filename=arguments.dataname+"_log.txt")
+
+    if arguments.exp_nums:
+        exp_nums = [int(n) for n in arguments.exp_nums]
+    else:
+        exp_nums = None
+
+    naming_dict = io.get_w2v_naming()
+    dataname = arguments.dataname
+    action = arguments.action
+    clf_base = arguments.clf_base
+
+    w2v_data = np.load(naming_dict["w2v_data_name"])
+    y_data = np.load(naming_dict["y_labeled"])
+
+    w2v_feature_crd = pickle.load(open(naming_dict["w2v_feature_crd_name"], 'rb'))
+
+    names, experiments = build_experiments(w2v_feature_crd, experiment_nums=exp_nums)
+
+    if clf_base == "lr":
+        clf = LogisticRegression()
+    elif clf_base == "sdg":
+        clf = sklearn.linear_model.SGDClassifier(loss='log', penalty="l2",alpha=0.005, n_iter=5, shuffle=True)
+    else:
+        clf = SVC(kernel='linear', C=1)
+
+
+    print "Built experiments: ", names
+
+    logging.info("Built experiments: %s" % str(names))
+
+    with open(dataname + "_" + clf_base + "_fscore.txt", 'a') as f:
+        for name, experiment in zip(names, experiments):
+            print name, experiment
+            logging.info("Experiment %s %s" % (name, str(experiment)))
+            start = experiment[0][0]
+            stop = experiment[0][1]
+
+            if action == "classify":
+
+                #if test_filename is not None:
+                #    scores = run_train_test_classifier(w2v_data, y_data, train_data_end, start, stop, clf=clf)
+
+                    #scores = run_train_test_classifier(w2v_data[0:train_data_end, start:stop], y_data[0:train_data_end],
+                    #                                   w2v_data[train_data_end:, start:stop], y_data[train_data_end:], clf=clf)
+#                else:
+                scores = run_cv_classifier(w2v_data[:, start:stop], y_data, clf=clf, n_trials=10, n_cv=3)
+                print name, np.mean(scores, axis=0), scores.shape
+
+                for i, score in enumerate(scores):
+                    f.write("%i,%s,%f, %f, %f, %f, %f, %s, %s \n" %
+                           (i, name, score[0], score[1], score[2], score[3], score[4], clf_base, arguments.params))
+                f.flush()
+
+
+if __name__ == "__main__":
+    __main__()
+
