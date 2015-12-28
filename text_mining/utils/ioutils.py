@@ -114,18 +114,18 @@ def make_positive_labeled_kenyan_data(dataname):
 # a class that takes a normalized corpus saved in a text file - a text per line
 # and yields it as a list of tokens.
 class TextFile(object):
-    def __init__(self, filenames):
-        self.filenames = filenames
+    def __init__(self, filename):
+        self.filename = filename
 
     def __iter__(self):
-        for filename in self.filenames:
-            for line in codecs.open(filename, 'r', encoding='utf-8'):
-                yield tu.normalize_punctuation(line).split()
+        with codecs.open(self.filename, 'r', encoding='utf-8') as f:
+            for line in f:
+                yield line.split()
 
 
 # load an corpora of texts into a numpy array
 def load_data(filename):
-    with codecs.open(filename, 'w', encoding='utf-8') as fout:
+    with codecs.open(filename, 'r', encoding='utf-8') as fout:
         text_list = [line for line in fout]
     return np.array(text_list)
 
@@ -164,12 +164,14 @@ def save_cluster_info(filename, cluster_info):
 
 def get_w2v_naming():
 
-    names = {"x_labeled": "x_labeled.txt",
-             "y_labeled": "y_labeled.txt",
-             "x_unlabeled": "x_unlabeled.txt",
+    names = {"x_train": "x_train.txt",
+             "y_train": "y_train.txt",
+             "w2v_corpus": "w2v_corpus.txt",
              "x_test": "x_text",
              "y_test": "y_test",
              "w2v_model_name": "w2v_model",
              "w2v_data_name": "w2v_data",
              "w2v_features_crd_name": "w2v_f_crd",
              }
+
+    return names

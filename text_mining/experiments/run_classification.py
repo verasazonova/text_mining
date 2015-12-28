@@ -155,17 +155,16 @@ def build_experiments(feature_crd, names_orig=None, experiment_nums=None):
 def __main__():
 
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('-f', action='store', dest='filename', nargs='+', help='Filename')
     parser.add_argument('--dname', action='store', dest='dataname', default="log", help='Output filename')
     parser.add_argument('--clfbase', action='store', dest='clfbase', default='lr', help='Base Classifier name')
-    parser.add_argument('--action', action='store', dest='action', default='plot', help='Classify or explore')
+    parser.add_argument('--action', action='store', dest='action', default='classify', help='Classify or explore')
     parser.add_argument('--exp_num', action='store', dest='exp_nums', nargs='+', help='Experiments to save')
     parser.add_argument('--parameters', action='store', dest='params', nargs='+', help='Parameters to save')
 
 
     arguments = parser.parse_args()
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO,
-                        filename=arguments.dataname+"_log.txt")
+                        filename="log.txt")
 
     if arguments.exp_nums:
         exp_nums = [int(n) for n in arguments.exp_nums]
@@ -175,12 +174,12 @@ def __main__():
     naming_dict = io.get_w2v_naming()
     dataname = arguments.dataname
     action = arguments.action
-    clf_base = arguments.clf_base
+    clf_base = arguments.clfbase
 
-    w2v_data = np.load(naming_dict["w2v_data_name"])
-    y_data = np.load(naming_dict["y_labeled"])
+    w2v_data = np.load(naming_dict["w2v_data_name"]+".npy")
+    y_data = np.loadtxt(naming_dict["y_train"])
 
-    w2v_feature_crd = pickle.load(open(naming_dict["w2v_feature_crd_name"], 'rb'))
+    w2v_feature_crd = pickle.load(open(naming_dict["w2v_features_crd_name"], 'rb'))
 
     names, experiments = build_experiments(w2v_feature_crd, experiment_nums=exp_nums)
 
@@ -191,6 +190,7 @@ def __main__():
     else:
         clf = SVC(kernel='linear', C=1)
 
+    logging.info("Loaded a base classifier: %s" % clf)
 
     print "Built experiments: ", names
 
@@ -211,12 +211,13 @@ def __main__():
                     #scores = run_train_test_classifier(w2v_data[0:train_data_end, start:stop], y_data[0:train_data_end],
                     #                                   w2v_data[train_data_end:, start:stop], y_data[train_data_end:], clf=clf)
 #                else:
-                scores = run_cv_classifier(w2v_data[:, start:stop], y_data, clf=clf, n_trials=10, n_cv=3)
+                scores = run_cv_classifier(w2v_data[:, start:stop], y_data, clf=clf, n_trials=3, n_cv=3)
                 print name, np.mean(scores, axis=0), scores.shape
 
                 for i, score in enumerate(scores):
                     f.write("%i,%s,%f, %f, %f, %f, %f, %s, %s \n" %
-                           (i, name, score[0], score[1], score[2], score[3], score[4], clf_base, arguments.params))
+                           (i, name, score[0], score[1], score[2], score[3], score[4],
+                            clf_base, ",".join(arguments.params)))
                 f.flush()
 
 

@@ -26,7 +26,8 @@ def load_w2v(w2v_model_name):
     return None
 
 
-def build_word2vec(text_corpus, size=100, window=10, min_count=2, dataname="none", shuffle=False):
+def build_word2vec(text_corpus, size=100, window=10, min_count=2, dataname="none", shuffle=False,
+                   alpha=0.05, sg=1, sample=1e-3, iter=15):
     """
     Given a text corpus build a word2vec model
     :param size:
@@ -39,16 +40,16 @@ def build_word2vec(text_corpus, size=100, window=10, min_count=2, dataname="none
     #                     sample=1e-3, seed=1, workers=4, hs=1, min_alpha=0.0001, sg=1, negative=1e-4, cbow_mean=0)
 
     if shuffle:
-        w2v_model = Word2Vec(size=size, alpha=0.05, window=window, min_count=min_count, iter=1,
-                             sample=1e-3, seed=1, workers=4, hs=1, min_alpha=0.0001, sg=1, cbow_mean=0)
+        w2v_model = Word2Vec(size=size, alpha=alpha, window=window, min_count=min_count, iter=1,
+                             sample=sample, seed=1, workers=4, hs=1, min_alpha=0.0001, sg=sg, cbow_mean=0)
         w2v_model.build_vocab(text_corpus)
         w2v_model.iter = 1
-        for epoch in range(20):
+        for epoch in range(iter):
             perm = np.random.permutation(text_corpus.shape[0])
             w2v_model.train(text_corpus[perm])
     else:
-        w2v_model = Word2Vec(sentences=text_corpus, size=size, alpha=0.05, window=window, min_count=min_count, iter=20,
-                             sample=1e-3, seed=1, workers=4, hs=1, min_alpha=0.0001, sg=1, cbow_mean=0)
+        w2v_model = Word2Vec(sentences=text_corpus, size=size, alpha=alpha, window=window, min_count=min_count, iter=iter,
+                             sample=sample, seed=1, workers=4, hs=1, min_alpha=0.0001, sg=sg, cbow_mean=0)
 
     logging.info("%s" % w2v_model)
 

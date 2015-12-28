@@ -60,36 +60,35 @@ def scale_features(data, feature_crd):
 def __main__():
 
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('-f', action='store', dest='filename', nargs='+', help='Filename')
-    parser.add_argument('--w2v_name', action='store', dest='w2v_model_name', default="", help='W2v model filename')
     parser.add_argument('--diff1_max', action='store', dest='diff1_max', default='5', help='Diff 1 max')
     parser.add_argument('--diff0_max', action='store', dest='diff0_max', default='1', help='Diff 0 max')
 
     arguments = parser.parse_args()
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO,
-                        filename=arguments.dataname+"_log.txt")
+                        filename="log.txt")
 
     # parameters for w2v model
-    diff1_max=int(arguments.diif1_max)
-    diff0_max=int(arguments.diif0_max)
+    diff1_max=int(arguments.diff1_max)
+    diff0_max=int(arguments.diff0_max)
+
+    naming_dict = io.get_w2v_naming()
 
     # load w2v model
-    w2v_model = Word2Vec.load(arguments.w2v_model_name)
+    w2v_model = Word2Vec.load_word2vec_format(naming_dict["w2v_model_name"], binary=False)
 
     # load x_data
-    x_data = io.load_data( arguments.filename)
+    x_data = io.load_data(naming_dict["x_train"])
 
     w2v_data, w2v_feature_crd = build_and_vectorize_w2v(x_data=x_data, w2v_model=w2v_model,
                                                           diff1_max=diff1_max, diff0_max=diff0_max)
 
     # scale
-    naming_dict = io.get_w2v_naming()
 
     print "Vectorized.  Saving"
     logging.info("Vectorized. Saving")
     np.save(naming_dict["w2v_data_name"], np.ascontiguousarray(w2v_data))
 
-    pickle.dump(w2v_feature_crd, open(naming_dict["w2v_feature_crd_name"], 'wb'))
+    pickle.dump(w2v_feature_crd, open(naming_dict["w2v_features_crd_name"], 'wb'))
 
     logging.info("Scaling")
     print "Scaling"

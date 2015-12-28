@@ -4,12 +4,13 @@ import numpy as np
 from sklearn.cross_validation import train_test_split
 from text_mining.corpora import medical
 from text_mining.utils import ioutils as io
+from text_mining.utils import textutils as tu
 import argparse
 
 __author__ = 'verasazonova'
 
 
-def read_and_split_data(filename, p_labeled=1.0, p_used=0.0, n_trial=0, unlabeled_filenames=None, dataname=""):
+def read_and_split_data(filename, p_labeled=1.0, p_used=0.0, n_trial=0, unlabeled_filenames=None):
     x_full, y_full, stoplist, ids = make_x_y(filename, ["text", "label"])
 
     if unlabeled_filenames is not None:
@@ -34,7 +35,8 @@ def read_and_split_data(filename, p_labeled=1.0, p_used=0.0, n_trial=0, unlabele
         y_labeled = y_full
         ids_l = ids
     else:
-        x_unlabeled, x_labeled, y_unlabeled, y_labeled, _, ids_l = train_test_split(x_full, y_full, ids, test_size=p_labeled,
+        x_unlabeled, x_labeled, y_unlabeled, y_labeled, _, ids_l = train_test_split(x_full, y_full, ids,
+                                                                                    test_size=p_labeled,
                                                                                     random_state=n_trial)
 
     if p_used == 1:
@@ -42,22 +44,20 @@ def read_and_split_data(filename, p_labeled=1.0, p_used=0.0, n_trial=0, unlabele
     else:
         x_unused, x_unlabeled_for_w2v = train_test_split(x_unlabeled, test_size=p_used, random_state=0)
 
-    experiment_name = "%s_%0.3f_%0.1f_%i" % (dataname, p_labeled, p_used, n_trial)
-
-    return x_labeled, y_labeled, x_unlabeled_for_w2v, experiment_name, stoplist, ids_l
+    return x_labeled, y_labeled, x_unlabeled_for_w2v, ids_l
 
 
 # read data from different formats
 # extract the text (x), the label (y) and the id (optional)
-def make_x_y(filename, fields=None, file_type="medical"):
+def make_x_y(filename, fields=None, file_type="tweets"):
 #    stop_path = "/Users/verasazonova/Work/PycharmProjects/tweet_mining/tweet_mining/utils/en_swahili.txt"
 
     if file_type=="tweets":
-        stop_path = os.path.join(os.path.dirname(ioutils.__file__), "en_swahili.txt")
+        stop_path = os.path.join(os.path.dirname(io.__file__), "en_swahili.txt")
 
-        dataset = ioutils.KenyanCSVMessage(filename, fields=fields, stop_path=stop_path)
+        dataset = io.KenyanCSVMessage(filename, fields=fields, stop_path=stop_path)
 
-        text_corpus = [tweet[dataset.text_pos] for tweet in dataset]
+        text_corpus = [tu.normalize_punctuation(tweet[dataset.text_pos]) for tweet in dataset]
         if dataset.label_pos is not None:
             labels = [tweet[dataset.label_pos] for tweet in dataset]
             classes, indices = np.unique(labels, return_inverse=True)
@@ -75,15 +75,15 @@ def make_x_y(filename, fields=None, file_type="medical"):
         stoplist =  dataset.stoplist
 
     elif file_type == "text":
-        text_corpus = [text for text in medical.PMCOpenSubset(filename)]
+        text_corpus = [tu.normalize_punctuation(text) for text in medical.PMCOpenSubset(filename)]
         indices=None
         stoplist=None
         ids=None
 
     else:
-        stop_path = os.path.join(os.path.dirname(ioutils.__file__), "stopwords_punct.txt")
+        stop_path = os.path.join(os.path.dirname(io.__file__), "stopwords_punct.txt")
         dataset = medical.MedicalReviewAbstracts(filename, ['T', 'A'], labeled=False, tokenize=False, stop_path=stop_path)
-        text_corpus = [text for text in dataset]
+        text_corpus = [tu.normalize_punctuation(text) for text in dataset]
         labels = dataset.get_target()
         classes, indices = np.unique(labels, return_inverse=True)
         print classes
@@ -107,7 +107,7 @@ def __main__():
 
     arguments = parser.parse_args()
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO,
-                        filename=arguments.dataname+"_log.txt")
+                        filename="log.txt")
 
     # parameters for large datasets
     ntrial = int(arguments.ntrial)
@@ -116,28 +116,26 @@ def __main__():
 
     naming_dict = io.get_w2v_naming()
 
-    x_labeled, y_labeled, x_unlabeled, _,_,_ = read_and_split_data(arguments.filename,
+    x_labeled, y_labeled, x_unlabeled, _ = read_and_split_data(arguments.filename[0],
                                                                    p_labeled=p_labelled,
                                                                    p_used=p_used,
                                                                    n_trial=ntrial,
-                                                                   unlabeled_filenames=arguments.filename[1:],
-                                                                   dataname=arguments.dname)
+                                                                   unlabeled_filenames=arguments.filename[1:])
 
-    # split and extract text training data
-    io.save_data(x_labeled, naming_dict["x_labeled"])
-    io.save_data(y_labeled, naming_dict["y_labeled"])
-    io.save_data(x_unlabeled, naming_dict["x_unlabeled"])
+    # split, extract and normalize text training data
+    io.save_data(x_labeled, naming_dict["x_train"])
+    io.save_data(y_labeled, naming_dict["y_train"])
+    io.save_data(np.concatenate([x_labeled,x_unlabeled]), naming_dict["w2v_corpus"])
 
     # extracts testing data if any
     if arguments.test_filename != "":
         test_filename = arguments.test_filename
-        x_labeled, y_labeled, _, _,_,_ = read_and_split_data(test_filename,
+        x_labeled, y_labeled, _,_ = read_and_split_data(test_filename,
                                                                    p_labeled=1,
                                                                    p_used=1,
-                                                                   n_trial=ntrial,
-                                                                   dataname=arguments.dname)
-        io.save_data(x_labeled, naming_dict["x_test_labeled"])
-        io.save_data(y_labeled, naming_dict["y_test_labeled"])
+                                                                   n_trial=ntrial)
+        io.save_data(x_labeled, naming_dict["x_test"])
+        io.save_data(y_labeled, naming_dict["y_test"])
 
 
 
