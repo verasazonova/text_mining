@@ -4,6 +4,7 @@ import numpy as np
 from sklearn.cross_validation import train_test_split
 from text_mining.corpora import medical
 from text_mining.utils import ioutils as io
+from text_mining.corpora.csv_tweet_reader import KenyanCSVMessage
 from text_mining.utils import textutils as tu
 import argparse
 
@@ -13,11 +14,13 @@ __author__ = 'verasazonova'
 def read_and_split_data(filename, p_labeled=1.0, p_used=0.0, n_trial=0, unlabeled_filenames=None):
     x_full, y_full, stoplist, ids = make_x_y(filename, ["text", "label"])
 
-    if unlabeled_filenames is not None:
+    print x_full.shape
+
+    if unlabeled_filenames is not None and unlabeled_filenames:
         x_unlabeled = []
         for unlabeled in unlabeled_filenames:
             if not os.path.basename(unlabeled).startswith("units_"):
-                file_type = "text"
+                file_type = "tweets"
             else:
                 file_type = "medical"
             print "Unlabeled filenames:  ", unlabeled, file_type
@@ -55,7 +58,7 @@ def make_x_y(filename, fields=None, file_type="tweets"):
     if file_type=="tweets":
         stop_path = os.path.join(os.path.dirname(io.__file__), "en_swahili.txt")
 
-        dataset = io.KenyanCSVMessage(filename, fields=fields, stop_path=stop_path)
+        dataset = KenyanCSVMessage(filename, fields=fields, stop_path=stop_path)
 
         text_corpus = [tu.normalize_punctuation(tweet[dataset.text_pos]) for tweet in dataset]
         if dataset.label_pos is not None:
@@ -91,8 +94,10 @@ def make_x_y(filename, fields=None, file_type="tweets"):
         ids = None
         stoplist = dataset.stoplist
 
+    if ids is None:
+        ids = np.zeros(len(indices))
 
-    return text_corpus, indices, stoplist, ids
+    return np.array(text_corpus), indices, stoplist, ids
 
 
 def __main__():

@@ -60,7 +60,7 @@ def __main__():
     window=int(arguments.window)
     alpha=float(arguments.alpha)
     sg=abs(int(arguments.cbow)-1)
-    sample=int(arguments.sample)
+    sample=float(arguments.sample)
     iter=int(arguments.iter)
 
     n_components = int(arguments.nclusters)

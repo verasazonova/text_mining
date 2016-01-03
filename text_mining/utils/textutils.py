@@ -25,7 +25,7 @@ def normalize_punctuation(phrase, url=True, username=True, hashtag=True, punctua
 
     # separate punctuation by space
     if punctuation:
-        for punctuation_char in [',', ':', '.', '(', ')', '!', '?', ':', ';', '/', '\"', '*', '^', '\'',
+        for punctuation_char in [',', ':', '.', '(', ')', '!', '?', ':', ';', '/', '\"', '*', '^', '\'', '{', '}', '|'
                                  '_', '[', ']', '+', '-', '\"', '`', '~', '=', u'\xe2', u'\xc2', u"\u2026",
                                  u"\u2018", u'\u2019', u'\u201d', u'\u201c', u'\u2039', u'\u2030a', u'\xab', u'\xbb',
                                  u'\u2033', u'\u2032']:
@@ -39,9 +39,14 @@ def normalize_punctuation(phrase, url=True, username=True, hashtag=True, punctua
     if hashtag:
         norm_phrase = re.sub(r'#', ' ', norm_phrase)
 
-    # replace multiple spaces by one
-    norm_phrase = re.sub(r'( )+', ' ', norm_phrase)
+    # replace all and multiple space characters with one ' ' space character
+    norm_phrase = re.sub(u"\u00A0", ' ', norm_phrase)
 
+    # replace multiple spaces by one
+    norm_phrase = re.sub(r'\s+', ' ', norm_phrase)
+
+    # delete space at the beginning of the phrase
+    norm_phrase = re.sub(r'\A( )+', '', norm_phrase)
     return norm_phrase
 
 

@@ -62,6 +62,7 @@ def __main__():
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('--diff1_max', action='store', dest='diff1_max', default='5', help='Diff 1 max')
     parser.add_argument('--diff0_max', action='store', dest='diff0_max', default='1', help='Diff 0 max')
+    parser.add_argument('--binary', action='store_true', dest='binary', help="Binary format")
 
     arguments = parser.parse_args()
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO,
@@ -74,7 +75,7 @@ def __main__():
     naming_dict = io.get_w2v_naming()
 
     # load w2v model
-    w2v_model = Word2Vec.load_word2vec_format(naming_dict["w2v_model_name"], binary=False)
+    w2v_model = Word2Vec.load_word2vec_format(naming_dict["w2v_model_name"], binary=arguments.binary)
 
     # load x_data
     x_data = io.load_data(naming_dict["x_train"])
