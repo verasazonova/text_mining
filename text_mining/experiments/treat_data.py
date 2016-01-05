@@ -4,25 +4,21 @@ import numpy as np
 from sklearn.cross_validation import train_test_split
 from text_mining.corpora import medical
 from text_mining.utils import ioutils as io
-from text_mining.corpora.csv_tweet_reader import KenyanCSVMessage
+from text_mining.corpora.csv_tweet_reader import KenyanCSVMessage, IMDB
 from text_mining.utils import textutils as tu
 import argparse
 
 __author__ = 'verasazonova'
 
 
-def read_and_split_data(filename, p_labeled=1.0, p_used=0.0, n_trial=0, unlabeled_filenames=None):
-    x_full, y_full, stoplist, ids = make_x_y(filename, ["text", "label"])
+def read_and_split_data(filename, p_labeled=1.0, p_used=0.0, n_trial=0, unlabeled_filenames=None, file_type=None):
+    x_full, y_full, stoplist, ids = make_x_y(filename, ["text", "label"], file_type=file_type)
 
     print x_full.shape
 
     if unlabeled_filenames is not None and unlabeled_filenames:
         x_unlabeled = []
         for unlabeled in unlabeled_filenames:
-            if not os.path.basename(unlabeled).startswith("units_"):
-                file_type = "tweets"
-            else:
-                file_type = "medical"
             print "Unlabeled filenames:  ", unlabeled, file_type
             x, _, _, _ = make_x_y(unlabeled, ["text"], file_type=file_type)
             x_unlabeled += x
@@ -52,7 +48,7 @@ def read_and_split_data(filename, p_labeled=1.0, p_used=0.0, n_trial=0, unlabele
 
 # read data from different formats
 # extract the text (x), the label (y) and the id (optional)
-def make_x_y(filename, fields=None, file_type="tweets"):
+def make_x_y(filename, fields=None, file_type=""):
 #    stop_path = "/Users/verasazonova/Work/PycharmProjects/tweet_mining/tweet_mining/utils/en_swahili.txt"
 
     if file_type=="tweets":
@@ -83,7 +79,7 @@ def make_x_y(filename, fields=None, file_type="tweets"):
         stoplist=None
         ids=None
 
-    else:
+    elif file_type == "medab":
         stop_path = os.path.join(os.path.dirname(io.__file__), "stopwords_punct.txt")
         dataset = medical.MedicalReviewAbstracts(filename, ['T', 'A'], labeled=False, tokenize=False, stop_path=stop_path)
         text_corpus = [tu.normalize_punctuation(text) for text in dataset]
@@ -93,6 +89,23 @@ def make_x_y(filename, fields=None, file_type="tweets"):
         print np.bincount(indices)
         ids = None
         stoplist = dataset.stoplist
+
+    elif file_type == "imdb":
+        stop_path = os.path.join(os.path.dirname(io.__file__), "stopwords_punct.txt")
+        dataset = IMDB(filename)
+        text_corpus = [tu.normalize_punctuation(text) for text in dataset.x]
+        labels = dataset.y
+        classes, indices = np.unique(labels, return_inverse=True)
+        print classes
+        print np.bincount(indices)
+        ids = None
+        stoplist = None
+
+    else:
+        ids = None
+        stoplist = None
+        text_corpus = None
+        indices = None
 
     if ids is None:
         ids = np.zeros(len(indices))
@@ -109,6 +122,7 @@ def __main__():
     parser.add_argument('--p_labeled', action='store', dest='p', default='1', help='Fraction of labeled data')
     parser.add_argument('--p_used', action='store', dest='thresh', default='0', help='Fraction of unlabelled data')
     parser.add_argument('--ntrial', action='store', dest='ntrial', default='0', help='Number of the trial')
+    parser.add_argument('--type', action='store', dest='filetype', default='tweets', help='Type of file: imdb, medab, text, tweets')
 
     arguments = parser.parse_args()
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO,
@@ -125,23 +139,26 @@ def __main__():
                                                                    p_labeled=p_labelled,
                                                                    p_used=p_used,
                                                                    n_trial=ntrial,
-                                                                   unlabeled_filenames=arguments.filename[1:])
+                                                                   unlabeled_filenames=arguments.filename[1:],
+                                                                   file_type=arguments.filetype)
 
     # split, extract and normalize text training data
     io.save_data(x_labeled, naming_dict["x_train"])
     io.save_data(y_labeled, naming_dict["y_train"])
-    io.save_data(np.concatenate([x_labeled,x_unlabeled]), naming_dict["w2v_corpus"])
 
+    x_test = []
     # extracts testing data if any
     if arguments.test_filename != "":
         test_filename = arguments.test_filename
-        x_labeled, y_labeled, _,_ = read_and_split_data(test_filename,
+        x_test, y_test, _,_ = read_and_split_data(test_filename,
                                                                    p_labeled=1,
                                                                    p_used=1,
-                                                                   n_trial=ntrial)
-        io.save_data(x_labeled, naming_dict["x_test"])
-        io.save_data(y_labeled, naming_dict["y_test"])
+                                                                   n_trial=ntrial,
+                                                                   file_type=arguments.filetype)
+        io.save_data(x_test, naming_dict["x_test"])
+        io.save_data(y_test, naming_dict["y_test"])
 
+    io.save_data(np.concatenate([x_labeled,x_unlabeled,x_test]), naming_dict["w2v_corpus"])
 
 
 if __name__ == "__main__":

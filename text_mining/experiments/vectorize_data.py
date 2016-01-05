@@ -79,15 +79,20 @@ def __main__():
 
     # load x_data
     x_data = io.load_data(naming_dict["x_train"])
+    x_test_data = io.load_data(naming_dict["x_test"])
+    train_end = len(x_data)
+    logging.info("Vectorizing: %i training texts" % train_end)
+    logging.info("Vectorizing: %i testing texts" % len(x_test_data))
 
-    w2v_data, w2v_feature_crd = build_and_vectorize_w2v(x_data=x_data, w2v_model=w2v_model,
+    w2v_data, w2v_feature_crd = build_and_vectorize_w2v(x_data=np.concatenate([x_data, x_test_data]), w2v_model=w2v_model,
                                                           diff1_max=diff1_max, diff0_max=diff0_max)
 
     # scale
 
     print "Vectorized.  Saving"
     logging.info("Vectorized. Saving")
-    np.save(naming_dict["w2v_data_name"], np.ascontiguousarray(w2v_data))
+    np.save(naming_dict["x_train_vec"], np.ascontiguousarray(w2v_data[:train_end]))
+    np.save(naming_dict["x_test_vec"], np.ascontiguousarray(w2v_data[train_end:]))
 
     pickle.dump(w2v_feature_crd, open(naming_dict["w2v_features_crd_name"], 'wb'))
 
@@ -97,11 +102,8 @@ def __main__():
     print "Scaled. Saving"
     logging.info("Scaled. Saving")
 
-    np.save(naming_dict["w2v_data_name"], np.ascontiguousarray(w2v_data))
-
-    print "Building experiments"
-    logging.info("Building experiments")
-
+    np.save(naming_dict["x_train_vec"], np.ascontiguousarray(w2v_data[:train_end]))
+    np.save(naming_dict["x_test_vec"], np.ascontiguousarray(w2v_data[train_end:]))
 
 
 if __name__ == "__main__":

@@ -23,6 +23,10 @@ def normalize_punctuation(phrase, url=True, username=True, hashtag=True, punctua
     if RT:
         norm_phrase = re.sub(r'\bRT\b', '', norm_phrase)
 
+    #delete <br> and <br/> tags
+    norm_phrase = re.sub(r'<br />', '', norm_phrase)
+
+
     # separate punctuation by space
     if punctuation:
         for punctuation_char in [',', ':', '.', '(', ')', '!', '?', ':', ';', '/', '\"', '*', '^', '\'', '{', '}', '|'

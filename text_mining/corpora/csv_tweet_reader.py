@@ -1,8 +1,8 @@
 __author__ = 'verasazonova'
 
-import codecs
 import logging
 import csv
+import io
 import numpy as np
 import os.path
 import text_mining.utils.textutils as tu
@@ -38,7 +38,7 @@ def read_tweets(filename, fields):
         row_str = reader_str.next()
         return row_str
 
-    with codecs.open(filename, 'r', encoding='utf-8', errors='replace') as f:
+    with io.open(filename, 'r', encoding='utf-8', errors='replace') as f:
         # forcing the reading line by line to avoid malformed csv entries
         reader = unicode_csv_reader(f, dialect=csv.excel)
         header = reader.next()
@@ -136,7 +136,7 @@ class KenyanCSVMessage():
         if os.path.isfile(stop_path):
             logging.info("Using %s as stopword list" % stop_path)
             self.stoplist = [unicode(word.strip()) for word in
-                             codecs.open(stop_path, 'r', encoding='utf-8').readlines()]
+                             io.open(stop_path, 'r', encoding='utf-8').readlines()]
         else:
             self.stoplist = []
 
@@ -160,3 +160,29 @@ class KenyanCSVMessage():
             elif row[self.date_pos] >= self.start_date and row[self.date_pos] <= self.end_date:
                 yield row
 
+
+class IMDB():
+
+    def __init__(self, dirname):
+        self.name_pos = dirname + "-pos.txt"
+        self.name_neg = dirname + "-neg.txt"
+#        self.unlabeled_name = os.path.join(dirname, "train-unsup.txt")
+
+        with io.open(self.name_pos, 'r', encoding='utf-8') as f:
+            x_pos = [line for line in f]
+
+        y_pos = [1 for x in x_pos]
+
+        print self.name_pos, len(x_pos)
+
+        x_neg = io.open(self.name_neg, 'r', encoding='utf-8').readlines()
+        y_neg = [0 for x in x_neg]
+
+        self.x = x_pos + x_neg
+        self.y = y_pos + y_neg
+
+        print len(x_neg)
+
+    def __iter__(self):
+        for x in self.x:
+            yield x

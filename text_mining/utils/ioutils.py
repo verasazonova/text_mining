@@ -4,7 +4,7 @@ __author__ = 'verasazonova'
 
 import logging
 import os
-import codecs
+import io
 from os.path import basename
 import dateutil.parser
 import numpy as np
@@ -22,7 +22,7 @@ def read_counts_bins_labels(dataname):
         for line in f:
             topic_definitions.append(line.strip().split())
     topics = []
-    with codecs.open(dataname+"_labels_weights.txt", 'r', encoding='utf-8') as f:
+    with io.open(dataname+"_labels_weights.txt", 'r', encoding='utf-8') as f:
         for line in f:
             topics.append([(tup.split(',')[1], tup.split(',')[0]) for tup in line.strip().split(' ')])
 
@@ -44,7 +44,7 @@ def clean_save_tweet_text(filename, fields):
     filename_out += "_".join(fields) + ".csv"
 
     #save sorted file with newline charactes removed from the text
-    with codecs.open(filename_out, 'w', encoding='utf-8') as fout:
+    with io.open(filename_out, 'w', encoding='utf-8') as fout:
         # write the data
         fout.write("\",\"".join(fields)+"\n")
         for row in data:
@@ -77,11 +77,11 @@ def extract_political_tweets(filename):
     if os.path.isfile(political_path):
             logging.info("Using %s as stopword list" % political_path)
             political_list = [unicode(word.strip()) for word in
-                              codecs.open(political_path, 'r', encoding='utf-8').readlines()]
+                              io.open(political_path, 'r', encoding='utf-8').readlines()]
     else:
         political_list = []
 
-    with codecs.open(basename(filename).split('.')[0]+"_political.csv", 'w', encoding='utf-8') as fout:
+    with io.open(basename(filename).split('.')[0]+"_political.csv", 'w', encoding='utf-8') as fout:
         fout.write("\",\"".join(fields)+"\n")
         for row in data:
             if is_politica_tweet(row[data.text_pos], political_list):
@@ -97,7 +97,7 @@ def make_positive_labeled_kenyan_data(dataname):
     dataset = KenyanCSVMessage(dataname+".csv", fields=["text", "id_str"])
 
     cnt_pos = 0
-    with codecs.open(dataname+"_annotated_positive.csv", 'w', encoding='utf-8') as fout:
+    with io.open(dataname+"_annotated_positive.csv", 'w', encoding='utf-8') as fout:
         fout.write("id_str,text,label\n")
         for cnt, tweet in enumerate(dataset):
             if cnt % 10000 == 0:
@@ -118,26 +118,26 @@ class TextFile(object):
         self.filename = filename
 
     def __iter__(self):
-        with codecs.open(self.filename, 'r', encoding='utf-8') as f:
+        with io.open(self.filename, 'r', encoding='utf-8') as f:
             for line in f:
                 yield line.split()
 
 
 # load an corpora of texts into a numpy array
 def load_data(filename):
-    with codecs.open(filename, 'r', encoding='utf-8') as fout:
+    with io.open(filename, 'r', encoding='utf-8') as fout:
         text_list = [line for line in fout]
     return np.array(text_list)
 
 # save a corpora of text in a text file one text per line
 def save_data(data, filename):
-    with codecs.open(filename, 'w', encoding='utf-8') as fout:
+    with io.open(filename, 'w', encoding='utf-8') as fout:
         for line in data:
-            fout.write("%s\n" % line)
+            fout.write("%s\n" % unicode(line))
 
 
 def save_positives(positives, dataname):
-    with codecs.open(dataname+"_additional_positives.csv", 'w', encoding='utf-8') as fout:
+    with io.open(dataname+"_additional_positives.csv", 'w', encoding='utf-8') as fout:
         fout.write("id_str,text\n")
         for tweet, id in positives:
             fout.write(id + ",\"" + tweet.replace("\"", "\"\"") + "\"\n")
@@ -146,14 +146,14 @@ def save_positives(positives, dataname):
 def save_words_representations(filename, word_list, vec_list):
     # saving word representations
     # word, w2v vector
-    with codecs.open(filename, 'w', encoding="utf-8") as fout:
+    with io.open(filename, 'w', encoding="utf-8") as fout:
         for word, vec in zip(word_list, vec_list):
             fout.write(word + "," + ",".join(["%.8f" % x for x in vec]) + "\n")
 
 
 # save cluster information: size and central words
 def save_cluster_info(filename, cluster_info):
-    with codecs.open(filename, 'w', encoding="utf-8") as fout:
+    with io.open(filename, 'w', encoding="utf-8") as fout:
         for cluster_dict in cluster_info:
             fout.write("%2i, %5i,   : " % (cluster_dict['cnt'], cluster_dict['size']))
             for j, word in enumerate(cluster_dict['words']):
@@ -167,10 +167,11 @@ def get_w2v_naming():
     names = {"x_train": "x_train.txt",
              "y_train": "y_train.txt",
              "w2v_corpus": "w2v_corpus.txt",
-             "x_test": "x_text",
-             "y_test": "y_test",
+             "x_test": "x_text.txt",
+             "y_test": "y_test.txt",
              "w2v_model_name": "w2v_model",
-             "w2v_data_name": "w2v_data",
+             "x_train_vec": "x_train_vec_data",
+             "x_test_vec": "x_test_vec_data",
              "w2v_features_crd_name": "w2v_f_crd",
              }
 

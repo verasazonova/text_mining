@@ -83,20 +83,23 @@ def run_cv_classifier(x, y, clf=None, fit_parameters=None, n_trials=10, n_cv=2, 
     return scores
 
 
-def run_train_test_classifier(x, y, train_end, start, stop, clf=None):
+def run_train_test_classifier(x_train, y_train, x_test, y_test, start, stop, clf=None):
     #print x_train.shape, y_train.shape, x_test.shape, y_test.shape
-    scores = np.zeros((1, 4))
+    scores = np.zeros((1, 5))
     MAX = 2e6
+
+    train_end = len(x_train)
     # if we can fit the whole array in memory.
 
+
     if train_end < MAX:
-        clf.fit(csr_matrix(x[0:train_end, start:stop]), y[0:train_end])
+        clf.fit(csr_matrix(x_train[:, start:stop]), y_train)
     # if not, go by batches.
 
     else:
         batch_size = 10000
         n_batches = int(train_end/batch_size)
-        all_classes = np.unique(y)
+        all_classes = np.unique(y_train)
         print "Learning by batches: %i " % n_batches
         logging.info("Learning by batches: %i " % n_batches )
 
@@ -106,17 +109,17 @@ def run_train_test_classifier(x, y, train_end, start, stop, clf=None):
             for i in range(n_batches):
                 logging.info("Run  %i %i " % (r, i))
                 batch_inds = inds[i*batch_size:(i+1)*batch_size]
-                clf.partial_fit(csr_matrix(x[batch_inds, start:stop]), y[batch_inds], classes=all_classes)
+                clf.partial_fit(csr_matrix(x_train[batch_inds, start:stop]), y_train[batch_inds], classes=all_classes)
 
             # last batch
             batch_inds = inds[n_batches*batch_size:]
             if batch_inds:
-                clf.partial_fit(csr_matrix(x[batch_inds, start:stop]), y[batch_inds], classes=all_classes)
+                clf.partial_fit(csr_matrix(x_train[batch_inds, start:stop]), y_train[batch_inds], classes=all_classes)
 
-    predictions = clf.predict(csr_matrix(x[train_end:, start:stop]))
+    predictions = clf.predict(csr_matrix(x_test[:, start:stop]))
     for i, metr in enumerate([sklearn.metrics.accuracy_score, sklearn.metrics.precision_score,
-                              sklearn.metrics.recall_score, sklearn.metrics.f1_score]):
-        sc = metr(y[train_end:], predictions)
+                              sklearn.metrics.recall_score, sklearn.metrics.f1_score, sklearn.metrics.roc_auc_score]):
+        sc = metr(y_test, predictions)
         scores[0, i] = sc
 
     return scores
@@ -157,7 +160,7 @@ def __main__():
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('--dname', action='store', dest='dataname', default="log", help='Output filename')
     parser.add_argument('--clfbase', action='store', dest='clfbase', default='lr', help='Base Classifier name')
-    parser.add_argument('--action', action='store', dest='action', default='classify', help='Classify or explore')
+    parser.add_argument('--type', action='store', dest='type', default='classify', help='CV test or grid_search')
     parser.add_argument('--exp_num', action='store', dest='exp_nums', nargs='+', help='Experiments to save')
     parser.add_argument('--parameters', action='store', dest='params', nargs='+', help='Parameters to save')
 
@@ -173,11 +176,15 @@ def __main__():
 
     naming_dict = io.get_w2v_naming()
     dataname = arguments.dataname
-    action = arguments.action
+    experiment_type = arguments.type
     clf_base = arguments.clfbase
 
-    w2v_data = np.load(naming_dict["w2v_data_name"]+".npy")
-    y_data = np.loadtxt(naming_dict["y_train"])
+    x_train_data = np.load(naming_dict["x_train_vec"]+".npy")
+    y_train_data = np.loadtxt(naming_dict["y_train"])
+
+    x_test_data = np.load(naming_dict["x_test_vec"]+".npy")
+    y_test_data = np.loadtxt(naming_dict["y_test"])
+
 
     w2v_feature_crd = pickle.load(open(naming_dict["w2v_features_crd_name"], 'rb'))
 
@@ -203,22 +210,18 @@ def __main__():
             start = experiment[0][0]
             stop = experiment[0][1]
 
-            if action == "classify":
+            if experiment_type == "cv":
+                scores = run_cv_classifier(x_train_data[:, start:stop], y_train_data, clf=clf, n_trials=3, n_cv=3)
+            elif experiment_type == "test":
+                scores = run_train_test_classifier(x_train_data, y_train_data, x_test_data, y_test_data, start, stop, clf=clf)
 
-                #if test_filename is not None:
-                #    scores = run_train_test_classifier(w2v_data, y_data, train_data_end, start, stop, clf=clf)
+            print name, np.mean(scores, axis=0), scores.shape
 
-                    #scores = run_train_test_classifier(w2v_data[0:train_data_end, start:stop], y_data[0:train_data_end],
-                    #                                   w2v_data[train_data_end:, start:stop], y_data[train_data_end:], clf=clf)
-#                else:
-                scores = run_cv_classifier(w2v_data[:, start:stop], y_data, clf=clf, n_trials=3, n_cv=3)
-                print name, np.mean(scores, axis=0), scores.shape
-
-                for i, score in enumerate(scores):
-                    f.write("%i,%s,%f, %f, %f, %f, %f, %s, %s \n" %
-                           (i, name, score[0], score[1], score[2], score[3], score[4],
-                            clf_base, ",".join(arguments.params)))
-                f.flush()
+            for i, score in enumerate(scores):
+                f.write("%i,%s,%f, %f, %f, %f, %f, %s, %s \n" %
+                       (i, name, score[0], score[1], score[2], score[3], score[4],
+                        clf_base, ", ".join(arguments.params)))
+            f.flush()
 
 
 if __name__ == "__main__":
