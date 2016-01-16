@@ -142,7 +142,7 @@ def run_grid_search(x, y, clf=None, parameters=None, fit_parameters=None):
     return grid_clf.best_score_
 
 
-def build_experiments(feature_crd, names_orig=None, experiment_nums=None):
+def build_experiments(feature_crd, names_orig=None, experiment_nums=None, sentences=True):
     if names_orig is None:
         names_orig = sorted(feature_crd.keys())
     experiments = []
@@ -151,9 +151,13 @@ def build_experiments(feature_crd, names_orig=None, experiment_nums=None):
     for name in names_orig:
         if (experiment_nums is None) or (int(name[:2]) in experiment_nums):
             names.append(name)
-            experiments.append( [(0, feature_crd[name][1])])
+            experiments.append( [(feature_crd[names_orig[0]][0], feature_crd[name][1])])
+    if sentences:
+        for name in names_orig[1:]:
+            if (experiment_nums is None) or (int(name[:2]) in experiment_nums):
+                names.append(name)
+                experiments.append( [(feature_crd[names_orig[1]][0], feature_crd[name][1])])
     return names, experiments
-
 
 def __main__():
 
@@ -163,6 +167,7 @@ def __main__():
     parser.add_argument('--type', action='store', dest='type', default='classify', help='CV test or grid_search')
     parser.add_argument('--exp_num', action='store', dest='exp_nums', nargs='+', help='Experiments to save')
     parser.add_argument('--parameters', action='store', dest='params', nargs='+', help='Parameters to save')
+    parser.add_argument('--txt', action='store_true', dest='txt', help='Data format: binary by default')
 
 
     arguments = parser.parse_args()
@@ -179,16 +184,25 @@ def __main__():
     experiment_type = arguments.type
     clf_base = arguments.clfbase
 
-    x_train_data = np.load(naming_dict["x_train_vec"]+".npy")
+    if arguments.txt:
+        x_train_data = np.loadtxt(naming_dict["x_train_vec"]+".txt")
+        if experiment_type == "test":
+            x_test_data = np.loadtxt(naming_dict["x_test_vec"]+".txt")
+        w2v_feature_crd = {'00_sentence': (1, x_train_data.shape[1])}
+        print w2v_feature_crd
+
+    else:
+        x_train_data = np.load(naming_dict["x_train_vec"]+".npy")
+        if experiment_type == "test":
+            x_test_data = np.load(naming_dict["x_test_vec"]+".npy")
+        w2v_feature_crd = pickle.load(open(naming_dict["w2v_features_crd_name"], 'rb'))
+
     y_train_data = np.loadtxt(naming_dict["y_train"])
+    if experiment_type == "test":
+        y_test_data = np.loadtxt(naming_dict["y_test"])
 
-    x_test_data = np.load(naming_dict["x_test_vec"]+".npy")
-    y_test_data = np.loadtxt(naming_dict["y_test"])
 
-
-    w2v_feature_crd = pickle.load(open(naming_dict["w2v_features_crd_name"], 'rb'))
-
-    names, experiments = build_experiments(w2v_feature_crd, experiment_nums=exp_nums)
+    names, experiments = build_experiments(w2v_feature_crd, experiment_nums=exp_nums, sentences=True)
 
     if clf_base == "lr":
         clf = LogisticRegression()
@@ -205,10 +219,10 @@ def __main__():
 
     with open(dataname + "_" + clf_base + "_fscore.txt", 'a') as f:
         for name, experiment in zip(names, experiments):
-            print name, experiment
             logging.info("Experiment %s %s" % (name, str(experiment)))
             start = experiment[0][0]
             stop = experiment[0][1]
+            print name, experiment, experiment_type, start, stop
 
             if experiment_type == "cv":
                 scores = run_cv_classifier(x_train_data[:, start:stop], y_train_data, clf=clf, n_trials=3, n_cv=3)

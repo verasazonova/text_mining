@@ -123,6 +123,7 @@ def __main__():
     parser.add_argument('--p_used', action='store', dest='thresh', default='0', help='Fraction of unlabelled data')
     parser.add_argument('--ntrial', action='store', dest='ntrial', default='0', help='Number of the trial')
     parser.add_argument('--type', action='store', dest='filetype', default='tweets', help='Type of file: imdb, medab, text, tweets')
+    parser.add_argument('--join_train_test', action='store_true', dest='join', help='Do cross validation on both test and train')
 
     arguments = parser.parse_args()
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO,
@@ -135,6 +136,7 @@ def __main__():
 
     naming_dict = io.get_w2v_naming()
 
+    # split, extract and normalize text training data
     x_labeled, y_labeled, x_unlabeled, _ = read_and_split_data(arguments.filename[0],
                                                                    p_labeled=p_labelled,
                                                                    p_used=p_used,
@@ -142,11 +144,8 @@ def __main__():
                                                                    unlabeled_filenames=arguments.filename[1:],
                                                                    file_type=arguments.filetype)
 
-    # split, extract and normalize text training data
-    io.save_data(x_labeled, naming_dict["x_train"])
-    io.save_data(y_labeled, naming_dict["y_train"])
-
     x_test = []
+    y_test = []
     # extracts testing data if any
     if arguments.test_filename != "":
         test_filename = arguments.test_filename
@@ -157,6 +156,16 @@ def __main__():
                                                                    file_type=arguments.filetype)
         io.save_data(x_test, naming_dict["x_test"])
         io.save_data(y_test, naming_dict["y_test"])
+
+    # save training data
+    if arguments.join:
+        io.save_data(np.concatenate([x_labeled, x_test]), naming_dict["x_train"])
+        io.save_data(np.concatenate([y_labeled, y_test]), naming_dict["y_train"])
+
+    else:
+        io.save_data(x_labeled, naming_dict["x_train"])
+        io.save_data(y_labeled, naming_dict["y_train"])
+
 
     io.save_data(np.concatenate([x_labeled,x_unlabeled,x_test]), naming_dict["w2v_corpus"])
 

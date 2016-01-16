@@ -6,6 +6,7 @@ from sklearn.preprocessing import StandardScaler
 from text_mining.utils import ioutils as io
 from text_mining.models import transformers
 from text_mining.utils import textutils as tu
+import os.path
 import argparse
 
 __author__ = 'verasazonova'
@@ -55,6 +56,13 @@ def scale_features(data, feature_crd):
 
 
 
+def join_features(data, sentence_data, feature_crd):
+    d = np.concatenate([sentence_data[:, 1:], data], axis=1)
+    offset = sentence_data.shape[1] - 1
+    for name, (start, end) in feature_crd.items():
+        feature_crd[name] = (start+offset, end+offset)
+    feature_crd["00_sentences"] = (0, offset)
+    return d, feature_crd
 
 
 def __main__():
@@ -63,6 +71,7 @@ def __main__():
     parser.add_argument('--diff1_max', action='store', dest='diff1_max', default='5', help='Diff 1 max')
     parser.add_argument('--diff0_max', action='store', dest='diff0_max', default='1', help='Diff 0 max')
     parser.add_argument('--binary', action='store_true', dest='binary', help="Binary format")
+    parser.add_argument('--sent_name', action='store', dest='sent_name', default='', help='Name of the file with sentences vectors')
 
     arguments = parser.parse_args()
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO,
@@ -79,7 +88,14 @@ def __main__():
 
     # load x_data
     x_data = io.load_data(naming_dict["x_train"])
-    x_test_data = io.load_data(naming_dict["x_test"])
+    if os.path.exists(arguments.sent_name):
+        w2v_sentence_data = np.loadtxt(arguments.sent_name)
+    else:
+        w2v_sentence_data = None
+    if os.path.exists(naming_dict["x_test"]):
+        x_test_data = io.load_data(naming_dict["x_test"])
+    else:
+        x_test_data = []
     train_end = len(x_data)
     logging.info("Vectorizing: %i training texts" % train_end)
     logging.info("Vectorizing: %i testing texts" % len(x_test_data))
@@ -92,7 +108,8 @@ def __main__():
     print "Vectorized.  Saving"
     logging.info("Vectorized. Saving")
     np.save(naming_dict["x_train_vec"], np.ascontiguousarray(w2v_data[:train_end]))
-    np.save(naming_dict["x_test_vec"], np.ascontiguousarray(w2v_data[train_end:]))
+    if x_test_data:
+        np.save(naming_dict["x_test_vec"], np.ascontiguousarray(w2v_data[train_end:]))
 
     pickle.dump(w2v_feature_crd, open(naming_dict["w2v_features_crd_name"], 'wb'))
 
@@ -102,8 +119,14 @@ def __main__():
     print "Scaled. Saving"
     logging.info("Scaled. Saving")
 
+    if w2v_sentence_data is not None:
+        w2v_data, w2v_feature_crd = join_features(w2v_data, w2v_sentence_data, w2v_feature_crd)
+
+    pickle.dump(w2v_feature_crd, open(naming_dict["w2v_features_crd_name"], 'wb'))
+
     np.save(naming_dict["x_train_vec"], np.ascontiguousarray(w2v_data[:train_end]))
-    np.save(naming_dict["x_test_vec"], np.ascontiguousarray(w2v_data[train_end:]))
+    if x_test_data:
+        np.save(naming_dict["x_test_vec"], np.ascontiguousarray(w2v_data[train_end:]))
 
 
 if __name__ == "__main__":

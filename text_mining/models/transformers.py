@@ -85,9 +85,9 @@ class W2VTextModel(BaseEstimator, TransformerMixin):
 
         # setting the coordinates for different models (start, stop)
         size = self.w2v_model.layer1_size
-        self.feature_crd = {'00_avg': (0, size),
-                            '01_std': (size, 2*size)}
-        feature_cnt = 2
+        self.feature_crd = {'01_avg': (0, size),
+                            '02_std': (size, 2*size)}
+        feature_cnt = 3
         start = 2*size
         l = size
         for i in range(1,self.diffmax0):
