@@ -18,6 +18,16 @@ def build_w2v_model(w2v_corpus, w2v_model_name="", window=0, size=0, min_count=0
     w2v_model.save_word2vec_format(w2v_model_name, binary=True)  #.save(w2v_model_name)
     return w2v_model
 
+# build a w2v model given a w2v corpus
+def build_d2v_model(w2v_corpus, w2v_model_name="", window=0, size=0, min_count=0, alpha=0.05, sg=1, iter=15, sample=1e-3):
+
+    d2v_model = w2v_models.build_doc2vec(w2v_corpus, size=size, window=window, min_count=min_count,
+                                          alpha=alpha, sample=sample, n_iter=iter)
+    logging.info("Model created")
+    d2v_model.init_sims(replace=True)
+    d2v_model.save_word2vec_format(w2v_model_name, binary=True)  #.save(w2v_model_name)
+    return d2v_model
+
 
 def build_dpgmm_model(w2v_corpus, w2v_model=None, n_components=0, dataname="", stoplist=None, recluster_thresh=0,
                       rebuild=False, alpha=5, no_below=6, no_above=0.9):

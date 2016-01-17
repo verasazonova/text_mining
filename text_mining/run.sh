@@ -7,19 +7,22 @@ BASE="/Users/verasazonova/Work"
 
 MAIN_PY_BASE=$BASE"/PycharmProjects/text_mining/text_mining/experiments"
 DATA_DIR=$BASE"/Data"
-DATA_TYPE="imdb"
+DATA_TYPE="tweets"
 
 if [ "${DATA_TYPE}" == "tweets" ]; then
-    DATA=$DATA_DIR"/tweet_sentiment/train.csv"
+    #DATA=$DATA_DIR"/tweet_sentiment/train.csv"
+    #DATA=$DATA_DIR"/kenyan_tweets/mpeketoni_annotated_positive.csv"
+    DATA=$DATA_DIR"/kenyan_tweets/makaburi_annotated_positive.csv"
+    #DATA=$DATA_DIR"/kenyan_tweets/mandera_annotated_positive.csv"
     DATA_TYPE="tweets"
-    P_LAB="0.1"
+    P_LAB="1"
     P_USED="0"
     CLASSIFICATION_TYPE="cv"
     #TEST_DATA=--test $DATA_DIR"/tweet_sentiment/test.csv"
 elif [ "${DATA_TYPE}" == "imdb" ]; then
     DATA=$DATA_DIR"/imdb/train"
     UNLAB_DATA=$DATA_DIR"/imdb/train-unsup"
-    TEST_DATA=--test $DATA_DIR"/imdb/test"
+    TEST_DATA="--test $DATA_DIR/imdb/test"
     P_LAB="1"
     P_USED="0"
     CLASSIFICATION_TYPE="test"
@@ -50,7 +53,7 @@ NEGATIVE=0
 ALPHA=0.025
 ITER=20
 
-DIFF1_MAX=10
+DIFF1_MAX=5
 DIFF0_MAX=0
 
 CLF="lr"
@@ -121,11 +124,10 @@ function run_glove {
 #
 CMD="python $MAIN_PY_BASE/treat_data.py -f $DATA $UNLAB_DATA $TEST_DATA  --p_labeled $P_LAB --p_used $P_USED --ntrial $N_TRIAL --type $DATA_TYPE"
 echo $CMD >> $LOG
-$CMD
+if [ ! -e "x_train.txt" ]; then
+    $CMD
+fi
 echo "Data read"
-
-gshuf w2v_corpus.txt > TEMP
-mv TEMP w2v_corpus.txt
 
 # Build model:
 if [ "${MODEL_TYPE}" == "w2v-skip-gram" ]; then
@@ -136,8 +138,7 @@ if [ "${MODEL_TYPE}" == "w2v-skip-gram" ]; then
 elif [ "${MODEL_TYPE}" == "w2v-sentence" ]; then
     ## with word2vec sentence vectors (mikolov)
 
-    run_sentences x_train.txt x_text.txt
-    CMD=""
+    CMD="run_sentences x_train.txt x_text.txt"
     FORMAT=''
     #FORMAT='--txt'
 
@@ -153,13 +154,19 @@ elif [ "${MODEL_TYPE}" == "gensim-skip-gram" ]; then
 
 elif [ "${MODEL_TYPE}" == "glove" ]; then
 
-    run_glove 10 0.025 0.5   #$X_MAX $ETA $ALPHA_GLOVE
-    CMD=""
+    CMD="run_glove 10 0.025 0.5   #$X_MAX $ETA $ALPHA_GLOVE"
     FORMAT=''
 
 fi
-echo $CMD >> $LOG
-$CMD
+
+
+if [ ! -e "w2v_model" ]; then
+    gshuf w2v_corpus.txt > TEMP
+    mv TEMP w2v_corpus.txt
+
+    echo $CMD >> $LOG
+    $CMD
+fi
 echo "Model build"
 
 #if [ "${MODEL_TYPE}" != "w2v-sentence" ]; then

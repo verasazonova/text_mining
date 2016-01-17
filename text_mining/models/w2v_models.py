@@ -3,9 +3,10 @@ __author__ = 'verasazonova'
 import numpy as np
 
 from text_mining.utils import textutils as tu
-from gensim.models.doc2vec import LabeledSentence
+from gensim.models.doc2vec import TaggedDocument
 from gensim.models import Word2Vec, Doc2Vec
 import os.path
+from random import shuffle
 
 import logging
 
@@ -77,7 +78,7 @@ def make_d2v_model_name(dataname, size, window, type_str):
     return "d2v_model_%s_%s_%i_%i" % (dataname, type_str, size, window)
 
 
-def build_doc2vec(dataset, size=100, window=10, dataname="none"):
+def build_doc2vec(text_corpus, size=100, window=10, n_iter=10, alpha=0.025, min_alpha=0.001, sample=1e-3, min_count=1):
     """
     Given a text corpus build a word2vec model
     :param size:
@@ -86,41 +87,25 @@ def build_doc2vec(dataset, size=100, window=10, dataname="none"):
     :return:
     """
 
-    # dataset a class of KenyaCSMessage, a list of tweets, sorted by date.
-
-    # Extract date and text.
-    # Clean, tokenize it
-    # Build a BOW model.
-    text_pos = dataset.text_pos
-    id_pos = dataset.id_pos
-    data = np.array(dataset.data)
-
-    text_data, text_dict, text_bow = tu.process_text(data[:, text_pos], stoplist=dataset.stoplist, keep_all=True)
-
-    labeled_text_data = np.array([LabeledSentence(tweet, ["id_"+str(id_str)])
-                                  for tweet, id_str in zip(text_data, data[:, id_pos])])
+    labeled_text_data = [TaggedDocument(text, ["id_"+str(line_no)]) for line_no, text in enumerate(text_corpus)]
 
     logging.info("Text processed")
     logging.info("Building d2v ")
 
     d2v_model_dm = Doc2Vec(min_count=1, window=window, size=size, sample=1e-3, negative=5, workers=4)
-    d2v_model_dbow = Doc2Vec(min_count=1, window=window, size=size, sample=1e-3, negative=5, dm=0, workers=4)
 
     #build vocab over all reviews
     d2v_model_dm.build_vocab(labeled_text_data)
-    d2v_model_dbow.build_vocab(labeled_text_data)
 
+    cur_alpha = alpha
     #We pass through the data set multiple times, shuffling the training reviews each time to improve accuracy.
-    for epoch in range(10):
-        perm = np.random.permutation(labeled_text_data.shape[0])
-        d2v_model_dm.train(labeled_text_data[perm])
-        d2v_model_dbow.train(labeled_text_data[perm])
+    for epoch in range(n_iter):
 
-    d2v_model_dm_name = make_d2v_model_name(dataname, size, window, 'dm')
-    d2v_model_dbow_name = make_d2v_model_name(dataname, size, window, 'dbow')
-    d2v_model_dm.save(d2v_model_dm_name)
-    d2v_model_dbow.save(d2v_model_dbow_name)
-
-    return d2v_model_dm, d2v_model_dbow
+        shuffle(labeled_text_data)
+        d2v_model_dm.alpha = cur_alpha
+        d2v_model_dm.min_alpha = cur_alpha
+        d2v_model_dm.train(labeled_text_data)
+        cur_alpha -= (alpha - min_alpha) / n_iter
+    return d2v_model_dm
 
 #------------------------------

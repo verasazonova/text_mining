@@ -9,6 +9,7 @@ import logging
 # add space around punctuation
 # assumes unicode strings
 def normalize_punctuation(phrase, url=True, username=True, hashtag=True, punctuation=True, RT=False, numbers=True):
+    # lower case, strip extra spaces, encode in utf-8 and remove everything that does not encode correctly
     norm_phrase = phrase.lower().strip()
 
     #replace url by tag URL

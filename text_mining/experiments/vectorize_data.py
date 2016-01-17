@@ -84,21 +84,26 @@ def __main__():
     naming_dict = io.get_w2v_naming()
 
     # load w2v model
-    w2v_model = Word2Vec.load_word2vec_format(naming_dict["w2v_model_name"], binary=arguments.binary)
+    w2v_model = Word2Vec.load_word2vec_format(naming_dict["w2v_model_name"], binary=arguments.binary,
+                                              unicode_errors='replace')
 
     # load x_data
     x_data = io.load_data(naming_dict["x_train"])
+    train_end = len(x_data)
+    logging.info("Vectorizing: %i training texts" % train_end)
+
+    test_data_exists = os.path.exists(naming_dict["x_test"])
+
     if os.path.exists(arguments.sent_name):
         w2v_sentence_data = np.loadtxt(arguments.sent_name)
     else:
         w2v_sentence_data = None
-    if os.path.exists(naming_dict["x_test"]):
+
+    if test_data_exists:
         x_test_data = io.load_data(naming_dict["x_test"])
+        logging.info("Vectorizing: %i testing texts" % len(x_test_data))
     else:
         x_test_data = []
-    train_end = len(x_data)
-    logging.info("Vectorizing: %i training texts" % train_end)
-    logging.info("Vectorizing: %i testing texts" % len(x_test_data))
 
     w2v_data, w2v_feature_crd = build_and_vectorize_w2v(x_data=np.concatenate([x_data, x_test_data]), w2v_model=w2v_model,
                                                           diff1_max=diff1_max, diff0_max=diff0_max)
@@ -108,7 +113,8 @@ def __main__():
     print "Vectorized.  Saving"
     logging.info("Vectorized. Saving")
     np.save(naming_dict["x_train_vec"], np.ascontiguousarray(w2v_data[:train_end]))
-    if x_test_data:
+
+    if test_data_exists:
         np.save(naming_dict["x_test_vec"], np.ascontiguousarray(w2v_data[train_end:]))
 
     pickle.dump(w2v_feature_crd, open(naming_dict["w2v_features_crd_name"], 'wb'))
@@ -125,7 +131,7 @@ def __main__():
     pickle.dump(w2v_feature_crd, open(naming_dict["w2v_features_crd_name"], 'wb'))
 
     np.save(naming_dict["x_train_vec"], np.ascontiguousarray(w2v_data[:train_end]))
-    if x_test_data:
+    if test_data_exists:
         np.save(naming_dict["x_test_vec"], np.ascontiguousarray(w2v_data[train_end:]))
 
 
