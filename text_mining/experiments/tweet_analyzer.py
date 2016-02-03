@@ -1,8 +1,9 @@
+from text_mining.experiments import cluster_data
 from text_mining.experiments.build_model import build_w2v_model
 from text_mining.experiments.run_classification import explore_classifier, run_cv_classifier, run_train_test_classifier
 from text_mining.experiments.treat_data import read_and_split_data, make_x_y
 from text_mining.experiments.vectorize_data import build_and_vectorize_w2v, scale_features, build_experiments
-from text_mining.models import w2v_models, cluster_models, transformers, lda_models
+from text_mining.models import w2v_models, transformers, lda_models
 
 __author__ = 'verasazonova'
 
@@ -35,7 +36,7 @@ def calculate_and_plot_lda(filename, ntopics, dataname):
     counts, bins, topics = ioutils.read_counts_bins_labels(dataname)
 
     # Figure out which topics to cluster together
-    clustered_counts, clustered_labels, clusters = cluster_models.build_clusters(counts, topics, thresh=0.09)
+    clustered_counts, clustered_labels, clusters = cluster_data.build_clusters(counts, topics, thresh=0.09)
 
     # Plot the clustered histogram
     plotutils.plot_tweets(counts=clustered_counts, dates=bins, clusters=clusters,

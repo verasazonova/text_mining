@@ -32,8 +32,7 @@ def build_d2v_model(w2v_corpus, w2v_model_name="", window=0, size=0, min_count=0
 def build_dpgmm_model(w2v_corpus, w2v_model=None, n_components=0, dataname="", stoplist=None, recluster_thresh=0,
                       rebuild=False, alpha=5, no_below=6, no_above=0.9):
 
-    model_name = w2v_models.make_dpgmm_model_name(dataname=dataname,n_components=n_components, n_below=no_below,
-                                                  n_above=no_above, alpha=alpha)
+    model_name = "dpgmm_model"
     logging.info("Looking for model %s" % model_name)
     if not rebuild and os.path.isfile(model_name):
         dpgmm = pickle.load(open(model_name, 'rb'))

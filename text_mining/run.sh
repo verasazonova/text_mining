@@ -11,8 +11,8 @@ DATA_TYPE="tweets"
 
 if [ "${DATA_TYPE}" == "tweets" ]; then
     #DATA=$DATA_DIR"/tweet_sentiment/train.csv"
-    #DATA=$DATA_DIR"/kenyan_tweets/mpeketoni_annotated_positive.csv"
-    DATA=$DATA_DIR"/kenyan_tweets/makaburi_annotated_positive.csv"
+    DATA=$DATA_DIR"/kenyan_tweets/mpeketoni_annotated_positive.csv"
+    #DATA=$DATA_DIR"/kenyan_tweets/makaburi_annotated_positive.csv"
     #DATA=$DATA_DIR"/kenyan_tweets/mandera_annotated_positive.csv"
     DATA_TYPE="tweets"
     P_LAB="1"
@@ -26,6 +26,13 @@ elif [ "${DATA_TYPE}" == "imdb" ]; then
     P_LAB="1"
     P_USED="0"
     CLASSIFICATION_TYPE="test"
+elif [ "${DATA_TYPE}" == "medab" ]; then
+    DATA=$DATA_DIR"/medab/units_Estrogens.txt"
+    UNLAB_DATA=$DATA_DIR"/medab/units_all.txt"
+    TEST_DATA=""
+    P_LAB="1"
+    P_USED="1"
+    CLASSIFICATION_TYPE="cv"
 fi
 
 PROGRAM_BASE=$BASE"/word2vec"
@@ -57,7 +64,7 @@ DIFF1_MAX=5
 DIFF0_MAX=0
 
 CLF="lr"
-MODEL_TYPE="w2v-sentence" # glove w2v-cbow gensim-skip-gram"
+MODEL_TYPE="w2v-sentence"  # w2v-sentence" # glove w2v-cbow gensim-skip-gram w2v-sentence"
 FORMAT='binary'
 
 LOG="execution_log.txt"
@@ -138,7 +145,7 @@ if [ "${MODEL_TYPE}" == "w2v-skip-gram" ]; then
 elif [ "${MODEL_TYPE}" == "w2v-sentence" ]; then
     ## with word2vec sentence vectors (mikolov)
 
-    CMD="run_sentences x_train.txt x_text.txt"
+    CMD="run_sentences x_train.txt x_text.txt x_unlabeled.txt"
     FORMAT=''
     #FORMAT='--txt'
 
@@ -161,6 +168,7 @@ fi
 
 
 if [ ! -e "w2v_model" ]; then
+    cat x_train.txt x_text.txt x_unlabeled.txt >> w2v_corpus.txt
     gshuf w2v_corpus.txt > TEMP
     mv TEMP w2v_corpus.txt
 
@@ -169,27 +177,43 @@ if [ ! -e "w2v_model" ]; then
 fi
 echo "Model build"
 
+
+if [ ! -e "cluster_vec.npy" ]; then
+    CMD="python $MAIN_PY_BASE/cluster_data.py $FORMAT"
+    echo $CMD >> $LOG
+    $CMD
+fi
+echo "Clusters built"
+
+
 #if [ "${MODEL_TYPE}" != "w2v-sentence" ]; then
     # Vectorize
-CMD="python $MAIN_PY_BASE/vectorize_data.py --diff1_max $DIFF1_MAX  --diff0_max $DIFF0_MAX $FORMAT --sent_name sentence_vectors.txt"
-echo $CMD >> $LOG
-$CMD
+if [ ! -e "x_train_vec_data.npy" ]; then
+    CMD="python $MAIN_PY_BASE/vectorize_data.py --diff1_max $DIFF1_MAX  --diff0_max $DIFF0_MAX $FORMAT --sent_name sentence_vectors.txt --clust_name cluster_vec.npy"
+    echo $CMD >> $LOG
+    $CMD
+fi
 echo "Data vectorized"
 FORMAT=''
-#fi
 
 # Run classifier
 OUTPUTNAME=${DATA##*/}
-CMD="python $MAIN_PY_BASE/run_classification.py --dname ${OUTPUTNAME%%.*} $FORMAT --type $CLASSIFICATION_TYPE --clfbase $CLF --parameters $P_LAB $P_USED $N_TRIAL $SIZE $WINDOW $MIN $DIFF1_MAX $DIFF0_MAX $MODEL_TYPE $SAMPLE $ITER $ALPHA $NEGATIVE"
-echo CMD >> $LOG
-$CMD
+for START in 2; do
+    MODEL_TYPE="w2v-skip-gram-"$START
+    CMD="python $MAIN_PY_BASE/run_classification.py --dname ${OUTPUTNAME%%.*} $FORMAT --type $CLASSIFICATION_TYPE --clfbase $CLF --start $START --parameters $P_LAB $P_USED $N_TRIAL $SIZE $WINDOW $MIN $DIFF1_MAX $DIFF0_MAX $MODEL_TYPE $SAMPLE $ITER $ALPHA $NEGATIVE"
+    echo $CMD >> $LOG
+    $CMD
+done
 echo "Classification completed"
 
 #rm *.npy
 #rm w2v_model
 
-CMD="python $MAIN_PY_BASE/plot_experiment.py -f ${OUTPUTNAME%%.*}_lr"
-echo CMD >> $LOG
+CMD="python $MAIN_PY_BASE/plot_experiment.py -f ${OUTPUTNAME%%.*}_lr -y 6"
+echo $CMD >> $LOG
+$CMD
+CMD="python $MAIN_PY_BASE/plot_experiment.py -f ${OUTPUTNAME%%.*}_lr -y 5"
+echo $CMD >> $LOG
 $CMD
 echo "Plotting completed"
 

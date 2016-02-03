@@ -142,21 +142,16 @@ def run_grid_search(x, y, clf=None, parameters=None, fit_parameters=None):
     return grid_clf.best_score_
 
 
-def build_experiments(feature_crd, names_orig=None, experiment_nums=None, sentences=True):
+def build_experiments(feature_crd, names_orig=None, experiment_nums=None, start=0):
     if names_orig is None:
         names_orig = sorted(feature_crd.keys())
     experiments = []
     print "Building experiments: ", experiment_nums
     names = []
-    for name in names_orig:
+    for name in names_orig[start:]:
         if (experiment_nums is None) or (int(name[:2]) in experiment_nums):
             names.append(name)
-            experiments.append( [(feature_crd[names_orig[0]][0], feature_crd[name][1])])
-    if sentences:
-        for name in names_orig[1:]:
-            if (experiment_nums is None) or (int(name[:2]) in experiment_nums):
-                names.append(name)
-                experiments.append( [(feature_crd[names_orig[1]][0], feature_crd[name][1])])
+            experiments.append( [(feature_crd[names_orig[start]][0], feature_crd[name][1])])
     return names, experiments
 
 def __main__():
@@ -168,6 +163,7 @@ def __main__():
     parser.add_argument('--exp_num', action='store', dest='exp_nums', nargs='+', help='Experiments to save')
     parser.add_argument('--parameters', action='store', dest='params', nargs='+', help='Parameters to save')
     parser.add_argument('--txt', action='store_true', dest='txt', help='Data format: binary by default')
+    parser.add_argument('--start', action='store', dest='start', default='0', help='Test with sent2vec')
 
 
     arguments = parser.parse_args()
@@ -202,7 +198,7 @@ def __main__():
         y_test_data = np.loadtxt(naming_dict["y_test"])
 
 
-    names, experiments = build_experiments(w2v_feature_crd, experiment_nums=exp_nums, sentences=True)
+    names, experiments = build_experiments(w2v_feature_crd, experiment_nums=exp_nums, start=int(arguments.start))
 
     if clf_base == "lr":
         clf = LogisticRegression()

@@ -10,7 +10,10 @@ from operator import itemgetter
 from gensim.matutils import corpus2dense
 import os.path
 import pickle
-
+import argparse
+from gensim.models import Word2Vec
+import text_mining.utils.ioutils as io
+from text_mining.models import transformers
 
 def crp_clusters(vecs):
     """
@@ -63,7 +66,7 @@ def load_build_dpggm(dpggm_model_name, x_data):
     if os.path.isfile(dpggm_model_name):
         clf = load_dpggm(dpggm_model_name)
     else:
-        clf = DPGMM(n_components=30, covariance_type='diag', alpha=5,  n_iter=1000)
+        clf = DPGMM(n_components=30, covariance_type='diag', alpha=5, n_iter=1000)
         logging.info("Fitting with DPGMM")
         clf.fit(x_data)
         pickle.dump(clf, open(dpggm_model_name, 'wb'))
@@ -228,3 +231,52 @@ def calculate_topics_similarity(topics):
 
     logging.info("Topic similarities: %s" % topic_similarities)
     return topic_similarities
+
+
+def build_dpgmm_model(w2v_corpus, w2v_model=None, n_components=0, dataname="", stoplist=None, recluster_thresh=0,
+                      rebuild=False, alpha=5, no_below=6, no_above=0.9):
+
+    model_name = "dpgmm_model"
+    logging.info("Looking for model %s" % model_name)
+    if not rebuild and os.path.isfile(model_name):
+        dpgmm = pickle.load(open(model_name, 'rb'))
+    else:
+        dpgmm = transformers.DPGMMClusterModel(w2v_model=w2v_model, n_components=n_components, dataname=dataname,
+                                               stoplist=stoplist, recluster_thresh=recluster_thresh, alpha=alpha,
+                                               no_below=no_below, no_above=no_above)
+        dpgmm.fit(w2v_corpus)
+        pickle.dump(dpgmm, open(model_name, 'wb'))
+    return dpgmm
+
+
+
+def __main__():
+
+    parser = argparse.ArgumentParser(description='')
+    parser.add_argument('--binary', action='store_true', dest='binary', help="Binary format")
+
+    arguments = parser.parse_args()
+    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO,
+                        filename="log.txt")
+
+    naming_dict = io.get_w2v_naming()
+
+
+    # load w2v model
+    w2v_model = Word2Vec.load_word2vec_format(naming_dict["w2v_model_name"], binary=arguments.binary,
+                                              unicode_errors='replace')
+
+    print w2v_model
+    # load x_data
+    x_data = io.load_data(naming_dict["x_train"])
+    train_end = len(x_data)
+    logging.info("Vectorizing: %i training texts" % train_end)
+
+    dpgmm_model = build_dpgmm_model(x_data, w2v_model=w2v_model, n_components=30)
+    vecs = dpgmm_model.transform(x_data)
+    print vecs.shape
+    np.save("cluster_vec", np.ascontiguousarray(vecs))
+
+
+if __name__ == "__main__":
+    __main__()

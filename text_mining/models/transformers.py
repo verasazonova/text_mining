@@ -74,6 +74,7 @@ class W2VTextModel(BaseEstimator, TransformerMixin):
 
         x_clean = [tu.normalize_punctuation(text).split() for text in X]
 
+
         if self.w2v_model is None:
             self.w2v_model = w2v_models.build_word2vec(x_clean, size=100, window=10, min_count=1, dataname="test")
 
@@ -85,9 +86,9 @@ class W2VTextModel(BaseEstimator, TransformerMixin):
 
         # setting the coordinates for different models (start, stop)
         size = self.w2v_model.layer1_size
-        self.feature_crd = {'01_avg': (0, size),
-                            '02_std': (size, 2*size)}
-        feature_cnt = 3
+        self.feature_crd = {'02_avg': (0, size),
+                            '03_std': (size, 2*size)}
+        feature_cnt = 4
         start = 2*size
         l = size
         for i in range(1,self.diffmax0):
@@ -239,10 +240,15 @@ class DPGMMClusterModel(BaseEstimator, TransformerMixin):
     # X is a sequence of texts
     def fit(self, X, y=None):
         # either consturct a dictionary from X, trim it
+
+        x = [tu.normalize_punctuation(text).split() for text in X]
+
         if self.dictionary is None:
-            self.dictionary = corpora.Dictionary(X)
+            self.dictionary = corpora.Dictionary(x)
         # or use an existing dictionary and trim the given set of words
         self.dictionary.filter_extremes(no_below=self.no_below, no_above=self.no_above, keep_n=9000)
+
+
 
         if self.w2v_model is None:
             w2v_corpus = [[word for word in text if self.should_cluster_word(word)] for text in X]
@@ -302,6 +308,7 @@ class DPGMMClusterModel(BaseEstimator, TransformerMixin):
             else:
                 central_words = []
             self.cluster_info.append({'cnt': i, 'size': cluster_size, 'words': central_words})
+            print i, central_words
 
         filename = "clusters_%s_%i_%.1f_%.0f.txt" % (self.dataname, self.n_components, self.no_above, self.no_below)
         io.save_cluster_info(filename, self.cluster_info)
@@ -311,33 +318,39 @@ class DPGMMClusterModel(BaseEstimator, TransformerMixin):
                             'reclustered': [i for i in range(0, self.n_components + self.n_sub_components*len(self.reclustered))
                                             if i not in self.reclustered]}
 
+
+
+
         return self
+
 
     # calculate cluster counts for one text
     def clusterize(self, text):
         word_list = [word for word in text if self.should_cluster_word(word)]
         vec_list = np.array([self.w2v_model[word] for word in word_list])
-        bincounts = np.zeros((self.n_components+self.n_sub_components*len(self.reclustered),))
+        weights = np.zeros((self.n_components+self.n_sub_components*len(self.reclustered),))
 
         if len(vec_list) > 0:
             # assign words to clusters
-            predictions = self.dpgmm.predict(self.scaler.transform(np.array(vec_list)))
-            global_bincount = np.bincount(predictions, minlength=self.n_components)
+            #predictions = self.dpgmm.predict(self.scaler.transform(np.array(vec_list)))
+            #global_bincount = np.bincount(predictions, minlength=self.n_components)
+            weights = np.sum(self.dpgmm.predict_proba(self.scaler.transform(np.array(vec_list))), axis=0)
+
             # re-assign words in large clusters
-            bincounts[0:self.n_components] = global_bincount #reshape((1,len(global_bincount)))
-            start = self.n_components
-            for i, subdpgmm in zip(self.reclustered, self.subdpgmms):
-                # if words in respective clusters exists - recluster them
-                vecs_torecluster = vec_list[predictions == i]
-                if len(vecs_torecluster) > 0:
-                    predictions = subdpgmm.dpgmm.predict(subdpgmm.scaler.transform(np.array(vecs_torecluster)))
-                    bincounts[start:start+subdpgmm.dpgmm.n_components] = \
-                        np.bincount(predictions, minlength=subdpgmm.dpgmm.n_components) #.reshape((1, subdpgmm.n_components))
-                start += subdpgmm.dpgmm.n_components
+            #bincounts[0:self.n_components] = global_bincount #reshape((1,len(global_bincount)))
+            #start = self.n_components
+            #for i, subdpgmm in zip(self.reclustered, self.subdpgmms):
+            #    # if words in respective clusters exists - recluster them
+            #    vecs_torecluster = vec_list[predictions == i]
+            #    if len(vecs_torecluster) > 0:
+            #        predictions = subdpgmm.dpgmm.predict(subdpgmm.scaler.transform(np.array(vecs_torecluster)))
+            #        bincounts[start:start+subdpgmm.dpgmm.n_components] = \
+            #            np.bincount(predictions, minlength=subdpgmm.dpgmm.n_components) #.reshape((1, subdpgmm.n_components))
+            #    start += subdpgmm.dpgmm.n_components
                 # erase the count inthe global counts
 
         # returns a vector of cluster bin counts: [ global, reclustered1, reclustered2, ...]
-        return bincounts.reshape((1, len(bincounts)))
+        return weights.reshape((1, len(weights)))
 
 
     # for a  text, constructs a bincount of clusters present in the sentence

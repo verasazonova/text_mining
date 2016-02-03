@@ -56,12 +56,22 @@ def scale_features(data, feature_crd):
 
 
 
-def join_features(data, sentence_data, feature_crd):
-    d = np.concatenate([sentence_data[:, 1:], data], axis=1)
-    offset = sentence_data.shape[1] - 1
-    for name, (start, end) in feature_crd.items():
+def join_features(data, sentence_data=None, cluster_data=None, feature_crd=None):
+    offset = 0
+    start = 0
+    d = data
+    if sentence_data is not None:
+        d = np.concatenate([sentence_data[:, 1:], data], axis=1)
+        feature_crd["00_sentences"] = (offset, offset + sentence_data.shape[1] -1 )
+        start += 1
+        offset += sentence_data.shape[1] - 1
+    if cluster_data is not None:
+        d = np.concatenate([cluster_data[:,], data], axis=1)
+        feature_crd["01_cluster"] = (offset, offset + cluster_data.shape[1])
+        offset += cluster_data.shape[1]
+        start += 1
+    for name, (start, end) in sorted(feature_crd.items())[start:]:
         feature_crd[name] = (start+offset, end+offset)
-    feature_crd["00_sentences"] = (0, offset)
     return d, feature_crd
 
 
@@ -72,6 +82,7 @@ def __main__():
     parser.add_argument('--diff0_max', action='store', dest='diff0_max', default='1', help='Diff 0 max')
     parser.add_argument('--binary', action='store_true', dest='binary', help="Binary format")
     parser.add_argument('--sent_name', action='store', dest='sent_name', default='', help='Name of the file with sentences vectors')
+    parser.add_argument('--clust_name', action='store', dest='clust_name', default='', help='Name of the file with sentences vectors')
 
     arguments = parser.parse_args()
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO,
@@ -94,10 +105,18 @@ def __main__():
 
     test_data_exists = os.path.exists(naming_dict["x_test"])
 
+    # sentence vetors calculated elsewherer
     if os.path.exists(arguments.sent_name):
         w2v_sentence_data = np.loadtxt(arguments.sent_name)
     else:
         w2v_sentence_data = None
+
+    # cluster vetors calculated elsewherer
+    if os.path.exists(arguments.clust_name):
+        w2v_cluster_data = np.load(arguments.clust_name)
+    else:
+        w2v_cluster_data = None
+
 
     if test_data_exists:
         x_test_data = io.load_data(naming_dict["x_test"])
@@ -105,8 +124,9 @@ def __main__():
     else:
         x_test_data = []
 
-    w2v_data, w2v_feature_crd = build_and_vectorize_w2v(x_data=np.concatenate([x_data, x_test_data]), w2v_model=w2v_model,
-                                                          diff1_max=diff1_max, diff0_max=diff0_max)
+    w2v_data, w2v_feature_crd = build_and_vectorize_w2v(x_data=np.concatenate([x_data, x_test_data]),
+                                                        w2v_model=w2v_model,
+                                                        diff1_max=diff1_max, diff0_max=diff0_max)
 
     # scale
 
@@ -119,20 +139,23 @@ def __main__():
 
     pickle.dump(w2v_feature_crd, open(naming_dict["w2v_features_crd_name"], 'wb'))
 
+    if w2v_sentence_data is not None or w2v_cluster_data is not None:
+        w2v_data, w2v_feature_crd = join_features(w2v_data, w2v_sentence_data, w2v_cluster_data, w2v_feature_crd)
+
+    pickle.dump(w2v_feature_crd, open(naming_dict["w2v_features_crd_name"], 'wb'))
+
+
     logging.info("Scaling")
     print "Scaling"
     w2v_data = scale_features(w2v_data, w2v_feature_crd)
     print "Scaled. Saving"
     logging.info("Scaled. Saving")
 
-    if w2v_sentence_data is not None:
-        w2v_data, w2v_feature_crd = join_features(w2v_data, w2v_sentence_data, w2v_feature_crd)
-
-    pickle.dump(w2v_feature_crd, open(naming_dict["w2v_features_crd_name"], 'wb'))
 
     np.save(naming_dict["x_train_vec"], np.ascontiguousarray(w2v_data[:train_end]))
     if test_data_exists:
         np.save(naming_dict["x_test_vec"], np.ascontiguousarray(w2v_data[train_end:]))
+
 
 
 if __name__ == "__main__":

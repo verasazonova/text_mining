@@ -5,7 +5,7 @@ import text_mining.utils.plotutils as pl
 import numpy as np
 from os.path import isfile
 import argparse
-
+from operator import itemgetter
 
 def make_labels(title=""):
     plt.gca().ticklabel_format(axis='x', style='sci', scilimits=(-2, 2))
@@ -49,7 +49,7 @@ def read_data(dataname, cind=2, cdict=None):
         cmap = pl.get_cmap(len(cvals))
         for i, cval in enumerate(cvals):
             cdict[cval] = cmap(i)
-        return data, cdict, features
+        return data, cdict, features, clfs, models
 
     return None
 
@@ -239,26 +239,30 @@ def plot_tweet_sentiment(dataname):
 
     #plt.savefig("%s_features_w2v.pdf" % (dataname))
 
-def plot_feature_dep(dataname):
-    features_data, cdict, names = read_data(dataname, cind=16)
+def plot_feature_dep(dataname, ycol=5):
+    features_data, cdict, names, _, models = read_data(dataname, cind=16)
     print names
     print cdict
     plt.figure()
-    pl.plot_multiple_xy_averages(features_data, 1, 2, 16, cdict=cdict, marker='s', witherror=True, series=False)
+    xlabels = {2:"Accuracy", 3:"Precision", 4:"Recall", 5:"F-score", 6:"AUC"}
+    pl.plot_multiple_xy_averages(features_data, 1, ycol, 16, cdict=cdict, marker='s', witherror=True, series=False)
     if "BOW" in names:
-        pl.plot_multiple_bases(features_data, 1, 2, 16, cdict='r', conditions=[(2, names['BOW'])])
-    labels = [r'sent', r'$\mu$',r'$\sigma$']
+        pl.plot_multiple_bases(features_data, 1, ycol, 16, cdict='r', conditions=[(2, names['BOW'])])
+    type_names = [r'sent', r'clust', r'$\mu$',r'$\sigma$']
     n_features = len(names.keys()) - 1
-    for i in range(1, int((n_features)/2)):
-        labels.append(r'$\tau^{%i}$' % i)
-        labels.append(r'$\tau_\sigma^{%i}$' % i)
-    plt.gca().set_xlim([0, len(labels)])
-    plt.gca().set_xticks(range(1, len(labels)),)
+    for i in range(1, int((n_features)/2)+2):
+        type_names.append(r'$\tau^{%i}$' % i)
+        type_names.append(r'$\tau_\sigma^{%i}$' % i)
+    plt.gca().set_xlim([0, len(names)])
+    plt.gca().set_xticks(range(1, len(names)),)
+    labels = [type_names[int(i[0:2])] for i in  sorted(names.keys())]
+
     plt.gca().set_xticklabels(labels, rotation=0, ha='center')
     plt.grid()
-    plt.title("10% tweet sentiment data.")
-    plt.legend(["With sentence-vec", "Without sentence-vec"], loc=5)
-    plt.savefig(dataname+".pdf")
+    plt.title(dataname)
+    plt.ylabel(xlabels[ycol])
+    plt.legend( [item[0] for item in sorted(models.items(), key=itemgetter(1))], loc=4)
+    plt.savefig(dataname+"_"+xlabels[ycol]+".pdf")
 
 
 def plot_kenyan_data(dataname):
@@ -371,10 +375,11 @@ def __main__():
 
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('-f', action='store', dest='filename', default="", help='Filename')
+    parser.add_argument('-y', action='store', dest='ycol', default="2", help='Filename')
 
     arguments = parser.parse_args()
 
-    plot_feature_dep(arguments.filename)
+    plot_feature_dep(arguments.filename, int(arguments.ycol))
 
 
 if __name__ == "__main__":

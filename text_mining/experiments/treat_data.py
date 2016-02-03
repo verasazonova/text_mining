@@ -21,7 +21,7 @@ def read_and_split_data(filename, p_labeled=1.0, p_used=0.0, n_trial=0, unlabele
         for unlabeled in unlabeled_filenames:
             print "Unlabeled filenames:  ", unlabeled, file_type
             x, _, _, _ = make_x_y(unlabeled, ["text"], file_type=file_type)
-            x_unlabeled += x
+            x_unlabeled = np.concatenate([x_unlabeled, x])
     else:
         x_unlabeled = []
 
@@ -167,7 +167,7 @@ def __main__():
         io.save_data(y_labeled, naming_dict["y_train"])
 
 
-    io.save_data(np.concatenate([x_labeled,x_unlabeled,x_test]), naming_dict["w2v_corpus"])
+    io.save_data(x_unlabeled, naming_dict["x_unlabeled"])
 
 
 if __name__ == "__main__":

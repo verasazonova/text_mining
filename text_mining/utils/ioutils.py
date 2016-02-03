@@ -155,17 +155,18 @@ def save_words_representations(filename, word_list, vec_list):
 def save_cluster_info(filename, cluster_info):
     with io.open(filename, 'w', encoding="utf-8") as fout:
         for cluster_dict in cluster_info:
-            fout.write("%2i, %5i,   : " % (cluster_dict['cnt'], cluster_dict['size']))
+            fout.write(unicode("%2i, %5i,   : " % (cluster_dict['cnt'], cluster_dict['size'])))
             for j, word in enumerate(cluster_dict['words']):
                 if j < 10:
-                    fout.write("%s " % word)
-            fout.write("\n")
+                    fout.write(unicode("%s ") % word)
+            fout.write(u'\n')
 
 
 def get_w2v_naming():
 
     names = {"x_train": "x_train.txt",
              "y_train": "y_train.txt",
+             "x_unlabeled": "x_unlabeled.txt",
              "w2v_corpus": "w2v_corpus.txt",
              "x_test": "x_text.txt",
              "y_test": "y_test.txt",
